@@ -1,0 +1,26 @@
+[
+{
+  "directory": "/home/rolfes/MovChoi/build",
+  "command": "/usr/bin/c++  -I/home/rolfes/MovChoi/include -I\"/home/rolfes/MovChoi/include/*\" -std=gnu++20 -o CMakeFiles/main.dir/src/main.cpp.o -c /home/rolfes/MovChoi/src/main.cpp",
+  "file": "/home/rolfes/MovChoi/src/main.cpp",
+  "output": "CMakeFiles/main.dir/src/main.cpp.o"
+},
+{
+  "directory": "/home/rolfes/MovChoi/build",
+  "command": "/usr/bin/c++  -I/home/rolfes/MovChoi/include -I\"/home/rolfes/MovChoi/include/*\" -std=gnu++20 -o CMakeFiles/main.dir/src/api/TMDBClient.cpp.o -c /home/rolfes/MovChoi/src/api/TMDBClient.cpp",
+  "file": "/home/rolfes/MovChoi/src/api/TMDBClient.cpp",
+  "output": "CMakeFiles/main.dir/src/api/TMDBClient.cpp.o"
+},
+{
+  "directory": "/home/rolfes/MovChoi/build",
+  "command": "/usr/bin/c++  -I/home/rolfes/MovChoi/include -I\"/home/rolfes/MovChoi/include/*\" -std=gnu++20 -o CMakeFiles/main.dir/src/core/DatabaseManager.cpp.o -c /home/rolfes/MovChoi/src/core/DatabaseManager.cpp",
+  "file": "/home/rolfes/MovChoi/src/core/DatabaseManager.cpp",
+  "output": "CMakeFiles/main.dir/src/core/DatabaseManager.cpp.o"
+},
+{
+  "directory": "/home/rolfes/MovChoi/build",
+  "command": "/usr/bin/c++  -I/home/rolfes/MovChoi/include -I\"/home/rolfes/MovChoi/include/*\" -std=gnu++20 -o CMakeFiles/main.dir/src/ui/cli.cpp.o -c /home/rolfes/MovChoi/src/ui/cli.cpp",
+  "file": "/home/rolfes/MovChoi/src/ui/cli.cpp",
+  "output": "CMakeFiles/main.dir/src/ui/cli.cpp.o"
+}
+]
