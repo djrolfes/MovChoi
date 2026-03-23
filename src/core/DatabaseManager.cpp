@@ -19,7 +19,7 @@ DatabaseManager::DatabaseManager(std::string dbname)
 
 DatabaseManager::~DatabaseManager() { sqlite3_close(m_db); }
 
-int DatabaseManager::get_user(const std::string &username, User &user) {
+int DatabaseManager::getUser(const std::string &username, User &user) {
   char *err_msg = 0;
   sqlite3_stmt *stmt;
 
@@ -49,9 +49,9 @@ int DatabaseManager::get_user(const std::string &username, User &user) {
 
   return 0;
 }
-int DatabaseManager::add_user(const std::string &username) {
+int DatabaseManager::addUser(const std::string &username) {
   int rc{0};
-  rc = get_user(username, user);
+  rc = getUser(username, user);
   if (user.id != -1) {
     // TODO: add call to allow for overwrite of existing user
     fprintf(stderr, "User already exists: %s\n", username.c_str());
@@ -61,25 +61,36 @@ int DatabaseManager::add_user(const std::string &username) {
     fprintf(stderr, "Error checking for existing user: %s\n", username.c_str());
     return 1;
   }
-  char *err_msg = 0;
-  sqlite3_stmt *stmt;
 
-  const char *sql = "INSERT INTO Users VALUES (?);";
+  sqlite3_stmt *stmt;
+  const char *sql = "INSERT INTO Users (username) VALUES (?);";
+
+  // 1. Prepare expects SQLITE_OK
   rc = sqlite3_prepare_v2(m_db, sql, -1, &stmt, nullptr);
   if (rc != SQLITE_OK) {
     fprintf(stderr, "Failed to prepare statement: %s\n", sqlite3_errmsg(m_db));
     return 1;
   }
 
-  sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_STATIC);
-  rc = sqlite3_step(stmt);
+  // 2. Bind expects SQLITE_OK (Adding a proper check here)
+  rc = sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_STATIC);
   if (rc != SQLITE_OK) {
-    fprintf(stderr, "Failed to prepare statement: %s\n", sqlite3_errmsg(m_db));
+    fprintf(stderr, "Failed to bind statement: %s\n", sqlite3_errmsg(m_db));
+    sqlite3_finalize(stmt);
     return 1;
   }
+
+  // 3. Step expects SQLITE_DONE for an INSERT
+  rc = sqlite3_step(stmt);
+  if (rc != SQLITE_DONE) {
+    fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(m_db));
+    sqlite3_finalize(stmt);
+    return 1;
+  }
+
   sqlite3_finalize(stmt);
 
-  rc = get_user(username, user);
+  rc = getUser(username, user);
   if (user.id == -1) {
     fprintf(stderr, "User could not be added: %s\n", username.c_str());
     return 1;
@@ -88,11 +99,12 @@ int DatabaseManager::add_user(const std::string &username) {
     fprintf(stderr, "Error checking for existing user: %s\n", username.c_str());
     return 1;
   }
+
   return 0;
 }
 
-int DatabaseManager::add_movie(const std::string &title, const MovieType type,
-                               const int release_year) {
+int DatabaseManager::addMovie(const std::string &title, const MovieType type,
+                              const int release_year) {
   int rc{0};
   sqlite3_stmt *stmt;
 
@@ -129,8 +141,8 @@ int DatabaseManager::add_movie(const std::string &title, const MovieType type,
   return 0;
 }
 
-int DatabaseManager::add_watchlist_entry(const int user_id, const int movie_id,
-                                         std::string date, const int rating) {
+int DatabaseManager::addWatchlistEntry(const int user_id, const int movie_id,
+                                       std::string date, const int rating) {
   sqlite3_stmt *stmt;
   int rc{0};
 
@@ -159,6 +171,31 @@ int DatabaseManager::add_watchlist_entry(const int user_id, const int movie_id,
     return 1;
   }
 
+  return 0;
+}
+
+bool DatabaseManager::userExists(const std::string &username) {
+  User tmp;
+  DatabaseManager::getUser(username, tmp);
+  if (tmp.id != -1) {
+    return true;
+  }
+  return false;
+}
+
+int DatabaseManager::setUser(const User user) {
+  if (!DatabaseManager::userExists(user.name)) {
+    DatabaseManager::addUser(user.name);
+  }
+  DatabaseManager::user = user;
+  return 0;
+}
+
+int DatabaseManager::setUser(const std::string username) {
+  if (!DatabaseManager::userExists(username)) {
+    DatabaseManager::addUser(username);
+  }
+  DatabaseManager::getUser(username, DatabaseManager::user);
   return 0;
 }
 // int DatabaseManager::add_watchlist_entry(const int user_id,

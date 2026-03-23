@@ -14,13 +14,16 @@ class DatabaseManager {
 public:
   DatabaseManager(std::string dbname = "data.db3");
   ~DatabaseManager();
-  int add_user(const std::string &username);
-  int get_user(const std::string &username, User &user);
-  int add_movie(const std::string &title, const MovieType type = MOVIE,
-                const int release_year = -1);
-  int add_watchlist_entry(const int user_id, const int movie_id,
-                          const std::string date = today(),
-                          const int rating = -1);
+  int addUser(const std::string &username);
+  int getUser(const std::string &username, User &user);
+  bool userExists(const std::string &username);
+  int setUser(const User user);
+  int setUser(const std::string username);
+  int addMovie(const std::string &title, const MovieType type = MOVIE,
+               const int release_year = -1);
+  int addWatchlistEntry(const int user_id, const int movie_id,
+                        const std::string date = today(),
+                        const int rating = -1);
   // int add_watchlist_entry(const int user_id, const std::string &title,
   //                         const std::string date = today(),
   //                         const int rating = -1);

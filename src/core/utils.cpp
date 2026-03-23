@@ -1,4 +1,5 @@
 #include "core/utils.hpp"
+#include "core/User.hpp"
 
 namespace core {
 std::string today() {
@@ -9,4 +10,7 @@ std::string today() {
          std::to_string(static_cast<unsigned>(ymd.month())) + "-" +
          std::to_string(static_cast<unsigned>(ymd.day()));
 }
+
+void User::set_active() {} // TODO: add the active user to config file
+
 } // namespace core

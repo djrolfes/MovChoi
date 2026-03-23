@@ -7,5 +7,6 @@ struct User {
   std::string name;
   // std::string email;
   // std::string passwordHash; // Store hashed passwords, not plain text
+  void set_active();
 };
 } // namespace core
