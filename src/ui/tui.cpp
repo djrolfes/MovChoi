@@ -37,8 +37,11 @@ std::vector<std::vector<std::string>> TUI::myTable::getTable() {
 }
 
 int TUI::myTable::updateTableData() {
-  tableData = mdataUpdate();
-  return 0;
+  if (mdataUpdate) {
+    tableData = mdataUpdate();
+    return 0;
+  }
+  return 1;
 }
 // Inside your myTable struct's event handler or FTXUI component wrapper:
 bool TUI::myTable::handleEvent(ftxui::Event event) {
@@ -80,6 +83,7 @@ void TUI::initTables() {
                 text(" | "),
                 KeyBind("d", "Delete"),
             }) | center});
+  user.tableHeader = {"User"};
 }
 
 void TUI::run() {

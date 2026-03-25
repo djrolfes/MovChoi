@@ -82,7 +82,7 @@ int DatabaseManager::getUser(const std::string &username, User &user) {
 
 std::vector<std::string> DatabaseManager::getUsernames() {
   std::vector<std::string> rtn;
-  int rc = getColumnString("name", "users", rtn);
+  int rc = getColumnString("username", "users", rtn);
   // TODO:: handle r!=0
   return rtn;
 }
