@@ -1,13 +1,7 @@
+-- sqlfluff:dialect:sqlite
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE
-);
-
-
-CREATE TABLE IF NOT EXISTS movies
-(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT, release_date TEXT
 );
 
 CREATE TABLE IF NOT EXISTS watchlist (

@@ -1,11 +1,15 @@
 #include "api/TMDBClient.hpp"
 #include "ui/cli.hpp"
+#include "ui/tui.hpp"
 #include <cstdio>
 // #include <curl/curl.h>
 #include <string>
 
 int main(int argc, char *argv[]) {
-  ui::CLI cli = ui::CLI::fromArgs(argc, argv);
+  ui::TUI tui = ui::TUI();
+  tui.init();
+  tui.run();
+  // ui::CLI cli = ui::CLI::fromArgs(argc, argv);
 
   // setAPIKey();
   // setAccessToken();

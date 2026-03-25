@@ -1,4 +1,5 @@
 #include "core/DatabaseManager.hpp"
+#include <vector>
 
 namespace core {
 DatabaseManager::DatabaseManager(std::string dbname)
@@ -15,6 +16,35 @@ DatabaseManager::DatabaseManager(std::string dbname)
   // make sure the schema is in place
   int schemaerr = exec_sql_from_file(m_db, "sql/schema.sql");
   // TODO: what to do when the schema is broken?
+}
+
+int DatabaseManager::getColumnString(const std::string &columnName,
+                                     const std::string &tableName,
+                                     std::vector<std::string> &out) {
+  sqlite3_stmt *stmt;
+
+  std::string query = "SELECT " + columnName + " From " + tableName + ";";
+  int rc = sqlite3_prepare_v2(m_db, query.c_str(), -1, &stmt, nullptr);
+  if (rc != SQLITE_OK) {
+    fprintf(stderr, "Failed to prepare statement: %s\n", sqlite3_errmsg(m_db));
+    return 1;
+  }
+  rc = sqlite3_step(stmt);
+  while (rc == SQLITE_ROW) {
+    const unsigned char *textVal = sqlite3_column_text(stmt, 0);
+    if (textVal) {
+      out.push_back(reinterpret_cast<const char *>(textVal));
+    } else {
+      out.push_back(""); // Or handle the NULL case however you prefer
+    }
+    rc = sqlite3_step(stmt);
+  }
+  if (rc != SQLITE_DONE) {
+    fprintf(stderr, "Error reading rows: %s\n", sqlite3_errmsg(m_db));
+    return 1;
+  }
+  sqlite3_finalize(stmt);
+  return 0;
 }
 
 DatabaseManager::~DatabaseManager() { sqlite3_close(m_db); }
@@ -49,6 +79,23 @@ int DatabaseManager::getUser(const std::string &username, User &user) {
 
   return 0;
 }
+
+std::vector<std::string> DatabaseManager::getUsernames() {
+  std::vector<std::string> rtn;
+  int rc = getColumnString("name", "users", rtn);
+  // TODO:: handle r!=0
+  return rtn;
+}
+
+std::vector<std::vector<std::string>> DatabaseManager::getUsernamesVertical() {
+  std::vector<std::string> tmp(getUsernames());
+  std::vector<std::vector<std::string>> rtn;
+  for (int i = 0; i < tmp.size(); i++) {
+    rtn.push_back({tmp[i]});
+  }
+  return rtn;
+}
+
 int DatabaseManager::addUser(const std::string &username) {
   int rc{0};
   rc = getUser(username, user);
