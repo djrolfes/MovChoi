@@ -16,9 +16,10 @@ public:
   ~DatabaseManager();
   int addUser(const std::string &username);
   int getUser(const std::string &username, User &user);
+  int removeUser(const std::string &username);
   bool userExists(const std::string &username);
-  int setUser(const User user);
-  int setUser(const std::string username);
+  int setUser(const User &user);
+  int setUser(const std::string &username);
   std::vector<std::string> getUsernames();
   std::vector<std::vector<std::string>> getUsernamesVertical();
   int addMovie(const std::string &title, const MovieType type = MOVIE,

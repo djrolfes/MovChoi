@@ -52,8 +52,8 @@ public:
 
 private:
   bool misInit = false;
-  myTable musers;
-  myTable *activeView;
+  int activeView = 0;
+  std::vector<myTable> mytables;
   core::DatabaseManager mdb;
   ftxui::Component mrenderer;
   ftxui::Component mcomponent;

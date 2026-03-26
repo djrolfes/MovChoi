@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug TUI (codelldb)",
+      "type": "codelldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/main",
+      "cwd": "${workspaceFolder}",
+      "stopOnEntry": false
+    }
+  ]
+}

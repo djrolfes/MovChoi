@@ -98,14 +98,9 @@ std::vector<std::vector<std::string>> DatabaseManager::getUsernamesVertical() {
 
 int DatabaseManager::addUser(const std::string &username) {
   int rc{0};
-  rc = getUser(username, user);
-  if (user.id != -1) {
+  if (userExists(username)) {
     // TODO: add call to allow for overwrite of existing user
     fprintf(stderr, "User already exists: %s\n", username.c_str());
-    return 1;
-  }
-  if (rc != 0) {
-    fprintf(stderr, "Error checking for existing user: %s\n", username.c_str());
     return 1;
   }
 
@@ -230,7 +225,7 @@ bool DatabaseManager::userExists(const std::string &username) {
   return false;
 }
 
-int DatabaseManager::setUser(const User user) {
+int DatabaseManager::setUser(const User &user) {
   if (!DatabaseManager::userExists(user.name)) {
     DatabaseManager::addUser(user.name);
   }
@@ -238,11 +233,49 @@ int DatabaseManager::setUser(const User user) {
   return 0;
 }
 
-int DatabaseManager::setUser(const std::string username) {
+int DatabaseManager::setUser(const std::string &username) {
   if (!DatabaseManager::userExists(username)) {
     DatabaseManager::addUser(username);
   }
   DatabaseManager::getUser(username, DatabaseManager::user);
+  return 0;
+}
+
+int DatabaseManager::removeUser(const std::string &username) {
+
+  int rc{0};
+  if (!DatabaseManager::userExists(username)) {
+    fprintf(stderr, "User does not exists: %s\n", username.c_str());
+    return 1;
+  }
+
+  sqlite3_stmt *stmt;
+  const char *sql = "DELETE FROM Users WHERE username=(?);";
+
+  // 1. Prepare expects SQLITE_OK
+  rc = sqlite3_prepare_v2(m_db, sql, -1, &stmt, nullptr);
+  if (rc != SQLITE_OK) {
+    fprintf(stderr, "Failed to prepare statement: %s\n", sqlite3_errmsg(m_db));
+    return 1;
+  }
+
+  // 2. Bind expects SQLITE_OK (Adding a proper check here)
+  rc = sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_STATIC);
+  if (rc != SQLITE_OK) {
+    fprintf(stderr, "Failed to bind statement: %s\n", sqlite3_errmsg(m_db));
+    sqlite3_finalize(stmt);
+    return 1;
+  }
+
+  // 3. Step expects SQLITE_DONE for an INSERT
+  rc = sqlite3_step(stmt);
+  if (rc != SQLITE_DONE) {
+    fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(m_db));
+    sqlite3_finalize(stmt);
+    return 1;
+  }
+
+  sqlite3_finalize(stmt);
   return 0;
 }
 // int DatabaseManager::add_watchlist_entry(const int user_id,
