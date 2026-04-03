@@ -1,3 +1,9 @@
 [submodule "external/SQLiteCpp"]
 	path = external/SQLiteCpp
 	url = https://github.com/SRombauts/SQLiteCpp.git
+[submodule "external/CLI11"]
+	path = external/CLI11
+	url = git@github.com:CLIUtils/CLI11.git
+[submodule "external/json"]
+	path = external/json
+	url = git@github.com:nlohmann/json.git

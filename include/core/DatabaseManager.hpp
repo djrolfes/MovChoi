@@ -1,6 +1,8 @@
 #pragma once
+#include "SQLiteCpp/Database.h"
 #include "core/User.hpp"
 #include "core/utils.hpp"
+#include <SQLiteCpp/SQLiteCpp.h>
 #include <cstring>
 #include <fstream>
 #include <sqlite3.h>
@@ -8,11 +10,16 @@
 #include <string>
 namespace core {
 enum MovieType { MOVIE, SERIES };
-int exec_sql_from_file(sqlite3 *db, const std::string &filename);
+int exec_sql_from_file(SQLite::Database &db, const std::string &filename);
 
 class DatabaseManager {
 public:
-  DatabaseManager(std::string dbname = "data.db3");
+  DatabaseManager(std::string dbname = "data.db3")
+      : mDbname(dbname),
+        mDb(dbname, SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE) {
+    mDb.exec("PRAGMA foreign_keys = ON;");
+    exec_sql_from_file(mDb, "sql/schema.sql");
+  }
   ~DatabaseManager();
   int addUser(const std::string &username);
   int getUser(const std::string &username, User &user);
@@ -27,7 +34,6 @@ public:
   int addWatchlistEntry(const int user_id, const int movie_id,
                         const std::string date = today(),
                         const int rating = -1);
-
   // int add_watchlist_entry(const int user_id, const std::string &title,
   //                         const std::string date = today(),
   //                         const int rating = -1);
@@ -36,8 +42,8 @@ private:
   int getColumnString(const std::string &columnName,
                       const std::string &tableName,
                       std::vector<std::string> &out);
-  const std::string m_dbname;
-  sqlite3 *m_db;
+  const std::string mDbname;
+  SQLite::Database mDb;
   User user;
 };
 } // namespace core

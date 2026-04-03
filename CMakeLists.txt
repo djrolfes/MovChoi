@@ -18,13 +18,21 @@ set(FETCHCONTENT_QUIET OFF)
 
 FetchContent_Declare(
   ftxui
-  GIT_REPOSITORY https://github.com/arthursonzogni/ftxui.git
-  GIT_TAG v5.0.0
-  GIT_PROGRESS TRUE
-  GIT_SHALLOW TRUE
-  EXCLUDE_FROM_ALL)
+  GIT_REPOSITORY https://github.com/ArthurSonzogni/ftxui
+  GIT_TAG v6.1.9)
 FetchContent_MakeAvailable(ftxui)
 # ------------------------------------------------------------------------------
+FetchContent_Declare(
+  nlohmann_json
+  GIT_REPOSITORY https://github.com/nlohmann/json.git
+  GIT_TAG v3.12.0 # Matches your requested version
+)
+FetchContent_MakeAvailable(nlohmann_json)
+# find_package(nlohmann_json 3.12.0 REQUIRED) add_library(foo ...)
+# target_link_libraries(foo PRIVATE nlohmann_json::nlohmann_json)
+set(CLI11_PRECOMPILED ON)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/external/CLI11)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/external/SQLiteCpp)
 
 # 1. Gather your source files
 set(SOURCES
@@ -39,11 +47,13 @@ add_executable(main ${SOURCES})
 # add_executable(main src/main.cpp)
 target_link_libraries(
   main
-  PRIVATE sqlite3 pthread dl CURL::libcurl
+  PRIVATE SQLiteCpp sqlite3 pthread dl
+  PRIVATE CURL::libcurl
   PRIVATE ftxui::screen
   PRIVATE ftxui::dom
   PRIVATE ftxui::component # Not needed for this example.
-)
+  PRIVATE nlohmann_json::nlohmann_json
+  PRIVATE CLI11::CLI11)
 
 # 1. THE ELEGANT LINKING MAGIC This tells the compiler: "When looking for
 #   headers, start looking in the 'include' folder."

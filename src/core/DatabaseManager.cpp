@@ -1,82 +1,40 @@
 #include "core/DatabaseManager.hpp"
+#include "SQLiteCpp/Database.h"
+#include "SQLiteCpp/Statement.h"
+#include <string>
 #include <vector>
 
 namespace core {
-DatabaseManager::DatabaseManager(std::string dbname)
-    : m_dbname(std::move(dbname)) {
-  int rtn = sqlite3_open(m_dbname.c_str(), &m_db);
-  // test for error
-  if (rtn != SQLITE_OK) {
-    // TODO: Handle error
-    fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(m_db));
-    sqlite3_close(m_db);
-    return;
-  }
-
-  // make sure the schema is in place
-  int schemaerr = exec_sql_from_file(m_db, "sql/schema.sql");
-  // TODO: what to do when the schema is broken?
-}
 
 int DatabaseManager::getColumnString(const std::string &columnName,
                                      const std::string &tableName,
                                      std::vector<std::string> &out) {
-  sqlite3_stmt *stmt;
-
-  std::string query = "SELECT " + columnName + " From " + tableName + ";";
-  int rc = sqlite3_prepare_v2(m_db, query.c_str(), -1, &stmt, nullptr);
-  if (rc != SQLITE_OK) {
-    fprintf(stderr, "Failed to prepare statement: %s\n", sqlite3_errmsg(m_db));
-    return 1;
+  // TODO: cache of tableNames and corresponding columnNames for whitelist
+  SQLite::Statement query(mDb,
+                          "SELECT " + columnName + " From " + tableName + ";");
+  while (query.executeStep()) {
+    out.push_back((std::string)query.getColumn(0));
   }
-  rc = sqlite3_step(stmt);
-  while (rc == SQLITE_ROW) {
-    const unsigned char *textVal = sqlite3_column_text(stmt, 0);
-    if (textVal) {
-      out.push_back(reinterpret_cast<const char *>(textVal));
-    } else {
-      out.push_back(""); // Or handle the NULL case however you prefer
-    }
-    rc = sqlite3_step(stmt);
-  }
-  if (rc != SQLITE_DONE) {
-    fprintf(stderr, "Error reading rows: %s\n", sqlite3_errmsg(m_db));
-    return 1;
-  }
-  sqlite3_finalize(stmt);
   return 0;
 }
 
-DatabaseManager::~DatabaseManager() { sqlite3_close(m_db); }
+DatabaseManager::~DatabaseManager() {}
 
 int DatabaseManager::getUser(const std::string &username, User &user) {
-  char *err_msg = 0;
-  sqlite3_stmt *stmt;
-
-  const char *sql = "SELECT id FROM Users WHERE username = ?;";
-  int rc = sqlite3_prepare_v2(m_db, sql, -1, &stmt, nullptr);
-  if (rc != SQLITE_OK) {
-    fprintf(stderr, "Failed to prepare statement: %s\n", sqlite3_errmsg(m_db));
-    return 1;
-  }
-
-  sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_STATIC);
-  rc = sqlite3_step(stmt);
+  SQLite::Statement query(mDb, "SELECT id FROM Users WHERE username = ?;");
+  query.bind(0, username.c_str());
+  int rc = query.executeStep();
 
   if (rc == SQLITE_ROW) {
-    user.id = sqlite3_column_int(stmt, 0);
+    user.id = query.getColumn("id");
     user.name = username;
   } else if (rc == SQLITE_DONE) {
     // No user found
     user.id = -1;
     user.name = "";
   } else {
-    fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(m_db));
-    sqlite3_finalize(stmt);
     return 1;
   }
-  sqlite3_finalize(stmt);
-
   return 0;
 }
 
@@ -97,40 +55,15 @@ std::vector<std::vector<std::string>> DatabaseManager::getUsernamesVertical() {
 }
 
 int DatabaseManager::addUser(const std::string &username) {
-  int rc{0};
   if (userExists(username)) {
     // TODO: add call to allow for overwrite of existing user
     fprintf(stderr, "User already exists: %s\n", username.c_str());
     return 1;
   }
 
-  sqlite3_stmt *stmt;
-  const char *sql = "INSERT INTO Users (username) VALUES (?);";
-
-  // 1. Prepare expects SQLITE_OK
-  rc = sqlite3_prepare_v2(m_db, sql, -1, &stmt, nullptr);
-  if (rc != SQLITE_OK) {
-    fprintf(stderr, "Failed to prepare statement: %s\n", sqlite3_errmsg(m_db));
-    return 1;
-  }
-
-  // 2. Bind expects SQLITE_OK (Adding a proper check here)
-  rc = sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_STATIC);
-  if (rc != SQLITE_OK) {
-    fprintf(stderr, "Failed to bind statement: %s\n", sqlite3_errmsg(m_db));
-    sqlite3_finalize(stmt);
-    return 1;
-  }
-
-  // 3. Step expects SQLITE_DONE for an INSERT
-  rc = sqlite3_step(stmt);
-  if (rc != SQLITE_DONE) {
-    fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(m_db));
-    sqlite3_finalize(stmt);
-    return 1;
-  }
-
-  sqlite3_finalize(stmt);
+  SQLite::Statement query(mDb, "INSERT INTO Users (username) VALUES (?);");
+  query.bind(0, username.c_str());
+  int rc = query.exec();
 
   rc = getUser(username, user);
   if (user.id == -1) {
@@ -147,135 +80,84 @@ int DatabaseManager::addUser(const std::string &username) {
 
 int DatabaseManager::addMovie(const std::string &title, const MovieType type,
                               const int release_year) {
-  int rc{0};
-  sqlite3_stmt *stmt;
-
-  if (release_year == -1) {
-    const char *sql =
-        "INSERT OR IGNORE INTO movies (title, type) VALUES (?,?);";
-
-    rc = sqlite3_prepare_v2(m_db, sql, -1, &stmt, nullptr);
-  } else {
-    const char *sql = "INSERT OR IGNORE INTO movies VALUES (?,?,?);";
-    rc = sqlite3_prepare_v2(m_db, sql, -1, &stmt, nullptr);
-  }
-  if (rc != SQLITE_OK) {
-    fprintf(stderr, "Failed to prepare statement: %s\n", sqlite3_errmsg(m_db));
-    return 1;
-  }
-
-  sqlite3_bind_text(stmt, 1, title.c_str(), -1, SQLITE_STATIC);
-  sqlite3_bind_int(stmt, 2, type);
+  std::string sql;
   if (release_year != -1) {
-    sqlite3_bind_int(stmt, 3, release_year);
+    sql = "INSERT OR IGNORE INTO movies (title, type, release_year) VALUES "
+          "(?,?,?);";
+  } else {
+    sql = "INSERT OR IGNORE INTO movies (title, type) VALUES (?,?);";
   }
-  rc = sqlite3_step(stmt);
-  if (rc != SQLITE_OK && rc != SQLITE_DONE) {
-    fprintf(stderr, "Failed to step statement: %s\n", sqlite3_errmsg(m_db));
-    sqlite3_finalize(stmt);
-    return 1;
+
+  SQLite::Statement query(mDb, sql);
+
+  query.bind(1, title);
+  query.bind(2, type);
+
+  if (release_year != -1) {
+    query.bind(3, release_year);
   }
-  // if (sqlite3_changes(m_db) == 0) {
-  //   fprintf(stderr, "Movie already exists: %s\n", title.c_str());
-  // }
-  sqlite3_finalize(stmt);
+  query.exec();
 
   return 0;
 }
 
 int DatabaseManager::addWatchlistEntry(const int user_id, const int movie_id,
                                        std::string date, const int rating) {
-  sqlite3_stmt *stmt;
-  int rc{0};
 
-  if (rating == -1) {
-    const char *sql = "INSERT OR IGNORE INTO watchlist (user_id, movie_id, "
-                      "date) VALUES (?,?,?);";
-    rc = sqlite3_prepare_v2(m_db, sql, -1, &stmt, nullptr);
-  } else {
-    const char *sql = "INSERT OR IGNORE INTO watchlist VALUES (?,?,?,?);";
-  }
-  if (rc != SQLITE_OK) {
-    fprintf(stderr, "Failed to prepare statement: %s\n", sqlite3_errmsg(m_db));
-    return 1;
-  }
-
-  sqlite3_bind_int(stmt, 1, user_id);
-  sqlite3_bind_int(stmt, 2, movie_id);
-  sqlite3_bind_text(stmt, 3, date.c_str(), -1, SQLITE_STATIC);
+  std::string sql;
   if (rating != -1) {
-    sqlite3_bind_int(stmt, 4, rating);
+    sql = "INSERT OR IGNORE INTO watchlist (user_id, movie_id, "
+          "date) VALUES (?,?,?);";
+  } else {
+    sql = "INSERT OR IGNORE INTO watchlist VALUES (?,?,?,?);";
   }
-  rc = sqlite3_step(stmt);
-  if (rc != SQLITE_OK && rc != SQLITE_DONE) {
-    fprintf(stderr, "Failed to step statement: %s\n", sqlite3_errmsg(m_db));
-    sqlite3_finalize(stmt);
-    return 1;
+
+  SQLite::Statement query(mDb, sql);
+
+  query.bind(1, user_id);
+  query.bind(2, movie_id);
+  query.bind(3, date);
+
+  if (rating != -1) {
+    query.bind(4, rating);
   }
+  query.exec();
 
   return 0;
 }
 
 bool DatabaseManager::userExists(const std::string &username) {
-  User tmp;
-  DatabaseManager::getUser(username, tmp);
-  if (tmp.id != -1) {
-    return true;
-  }
-  return false;
+  SQLite::Statement query(mDb, "SELECT (id) from users where username = (?);");
+  query.bind(1, username);
+  return query.executeStep();
 }
 
 int DatabaseManager::setUser(const User &user) {
-  if (!DatabaseManager::userExists(user.name)) {
-    DatabaseManager::addUser(user.name);
+  if (!userExists(user.name)) {
+    addUser(user.name);
   }
   DatabaseManager::user = user;
   return 0;
 }
 
 int DatabaseManager::setUser(const std::string &username) {
-  if (!DatabaseManager::userExists(username)) {
-    DatabaseManager::addUser(username);
+  if (!userExists(username)) {
+    addUser(username);
   }
-  DatabaseManager::getUser(username, DatabaseManager::user);
+  getUser(username, user);
   return 0;
 }
 
 int DatabaseManager::removeUser(const std::string &username) {
 
-  int rc{0};
   if (!DatabaseManager::userExists(username)) {
     fprintf(stderr, "User does not exists: %s\n", username.c_str());
     return 1;
   }
 
-  sqlite3_stmt *stmt;
-  const char *sql = "DELETE FROM Users WHERE username=(?);";
-
-  // 1. Prepare expects SQLITE_OK
-  rc = sqlite3_prepare_v2(m_db, sql, -1, &stmt, nullptr);
-  if (rc != SQLITE_OK) {
-    fprintf(stderr, "Failed to prepare statement: %s\n", sqlite3_errmsg(m_db));
-    return 1;
-  }
-
-  // 2. Bind expects SQLITE_OK (Adding a proper check here)
-  rc = sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_STATIC);
-  if (rc != SQLITE_OK) {
-    fprintf(stderr, "Failed to bind statement: %s\n", sqlite3_errmsg(m_db));
-    sqlite3_finalize(stmt);
-    return 1;
-  }
-
-  // 3. Step expects SQLITE_DONE for an INSERT
-  rc = sqlite3_step(stmt);
-  if (rc != SQLITE_DONE) {
-    fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(m_db));
-    sqlite3_finalize(stmt);
-    return 1;
-  }
-
-  sqlite3_finalize(stmt);
+  SQLite::Statement query(mDb, "DELETE FROM Users WHERE username=(?);");
+  query.bind(1, username);
+  query.exec();
   return 0;
 }
 // int DatabaseManager::add_watchlist_entry(const int user_id,
@@ -286,7 +168,7 @@ int DatabaseManager::removeUser(const std::string &username) {
 //   return 0;
 // }
 
-int exec_sql_from_file(sqlite3 *db, const std::string &filename) {
+int exec_sql_from_file(SQLite::Database &db, const std::string &filename) {
   std::ifstream file(filename);
   if (!file.is_open()) {
     fprintf(stderr, "Could not open file: %s\n", filename.c_str());
@@ -299,16 +181,9 @@ int exec_sql_from_file(sqlite3 *db, const std::string &filename) {
   std::string sql = buffer.str();
 
   // 3. Execute the SQL
-  char *err_msg = nullptr;
-  int rtn = sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &err_msg);
+  int rtn = db.exec(sql);
 
-  if (rtn != SQLITE_OK) {
-    fprintf(stderr, "SQL error: %s\n", err_msg);
-    sqlite3_free(err_msg);
-    return -1;
-  }
-
-  return 0;
+  return rtn;
 }
 
 } // namespace core
